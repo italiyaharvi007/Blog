@@ -1,0 +1,6 @@
+user sign up and login
+blog crud
+
+use pagination, cookie
+
+this demo is fully dynamic
