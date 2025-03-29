@@ -4,3 +4,26 @@ blog crud
 use pagination, cookie
 
 this demo is fully dynamic
+
+postman URL: http://localhost:3000/api/user/signUp
+
+
+NODE_ENV='development'
+PORT='3000'
+
+MONGO_URL="mongodb://localhost:27017/test"
+
+JWT_SECRET='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9'
+JWT_EXPIRES_IN='90d'
+JWT_COOKIE_EXPIRES_IN='90'
+
+# JWT_REFRESH_SECRET='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJBZG1pbiI6IkFkbWluIn0.fJvskLHeSJJBC23_uIDySlFLJML-GJ0lbly10dehIEU'
+# JWT_REFRESH_EXPIRES_IN='100d'
+
+# TIMEZONE='Africa/Windhoek'
+
+# EMAIL_FROM= "sandbox.smtp.mailtrap.io"
+# MAIL_HOST= "sandbox.smtp.mailtrap.io"
+# MAIL_PORT=2525
+# MAIL_USER= "78fd196ad0be4d"
+# MAIL_PASSWORD= "5fb42c730b6bc8"
