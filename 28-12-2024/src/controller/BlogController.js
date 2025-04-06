@@ -129,11 +129,9 @@ exports.get = async (req, res, next) => {
 //         const features = new APIFeatures(Blog.find({userID: user._id}), req.query)
 //         .filter()
 //         .sort()
-//         .searchName()
 //         .paginate();
 //       const total_record = new APIFeatures(Blog.find({userID: user._id}), req.query)
 //         .filter()
-//         .searchName()
 //         .sort();
 
 //       const blogs = await features.query;
@@ -157,89 +155,49 @@ exports.get = async (req, res, next) => {
 exports.getAll = async (req, res, next) => {
     try {
         const conditions = [];
+
+        // Text search
         if (req.query.search) {
             const searchRegex = new RegExp(req.query.search, "i");
-            conditions.push({
-                $or: [
-                    { name: { $regex: searchRegex } },
-                ],
-            });
+            conditions.push({ name: { $regex: searchRegex } });
         }
+
+        // Date filters
         if (req.query.checkInDate || req.query.checkOutDate) {
-            const startDate = req.query.checkInDate;
-            const endDate = req.query.checkOutDate;
-            console.log("startDate :", startDate);
-            console.log("endDate :", endDate);
-
-            // Construct a query condition for both check_in_date and check_out_date
-            const dateCondition = {};
-
-            if (startDate) {
-                dateCondition.$gte = startDate;
+            const dateConditions = [];
+            if (req.query.checkInDate) {
+                dateConditions.push({ check_in_date: { $gte: req.query.checkInDate } });
             }
-
-            if (endDate) {
-                dateCondition.$lte = endDate;
+            if (req.query.checkOutDate) {
+                dateConditions.push({ check_out_date: { $lte: req.query.checkOutDate } });
             }
-
-            // Push the combined condition into the conditions array
-            conditions.push({
-                $and: [
-                    { check_in_date: dateCondition },
-                    { check_out_date: dateCondition },
-                ],
-            });
+            if (dateConditions.length) {
+                conditions.push({ $and: dateConditions });
+            }
         }
+
+        // Search by user
         if (req.query.searchUser) {
-            const searchRegex = new RegExp(req.query.searchUser, "i");
-            let user = await User.find({ name: req.query.searchRegex });
-            if (!user) {
-                return res.status(404).json({
-                    status: "fail",
-                    message: "User Not Found.",
-                });
+            const userRegex = new RegExp(req.query.searchUser, "i");
+            const users = await User.find({ name: userRegex });
+            if (!users.length) {
+                return res.status(404).json({ status: "fail", message: "User Not Found." });
             }
             const userIds = users.map(user => user._id);
             conditions.push({ userId: { $in: userIds } });
         }
 
-        const finalCondition = conditions.length > 0 ? { $and: conditions } : {};
+        const finalCondition = conditions.length ? { $and: conditions } : {};
+
         const features = new APIFeatures(
-            Blog.find({
-                $or: [
-                    { userID: user._id },
-                ],
-                ...finalCondition,
-            }).populate([
-                {
-                    path: "userId",
-                    model: "User",
-                    select: "name",
-                },
-            ]),
+            Blog.find(finalCondition).populate("userId name"),
             req.query
-        )
-            .filter()
-            .sort()
-            .paginate();
+        ).filter().sort().paginate();
 
         const blogTotal = new APIFeatures(
-            Booking.find({
-                $or: [
-                    { userID: user._id },
-                ],
-                ...finalCondition,
-            }).populate([
-                {
-                    path: "userId",
-                    model: "User",
-                    select: "name",
-                },
-            ]),
+            Blog.find(finalCondition).populate("userId name"),
             req.query
-        )
-            .filter()
-            .sort();
+        ).filter().sort();
 
         const findBlog = await features.query;
         const totalData = await blogTotal.query;
@@ -254,6 +212,6 @@ exports.getAll = async (req, res, next) => {
 
     } catch (error) {
         console.log(error);
-        next(error)
+        next(error);
     }
-}
+};
