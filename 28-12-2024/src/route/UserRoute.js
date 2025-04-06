@@ -15,4 +15,8 @@ router.patch('/updateUser/:id',
     UserController.resizeImage,
     UserController.updateProfile);
 
+router.post('/forgot-password', UserController.forgotPassword);
+router.post('/resetPassword-password/:token', UserController.forgotPassword);
+router.post('/change-password/:token', UserController.updatePassword);
+
 module.exports = router;
