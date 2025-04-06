@@ -174,4 +174,100 @@ exports.updateProfile = async (req, res, next) => {
     }
 }
 
+//forgot password
+exports.forgotPassword = catchAsync(async (req, res, next) => {
+    // 1) Get user based on POSTed email
+    const user = await WellnessMahotsavMentorUser.findOne({
+      email: req.body.email,
+    });
+    if (!user) {
+      return next(new AppError("There Is No User With Username.", 404));
+    }
+    // 2) Generate the random reset token
+    const resetToken = await user.createPasswordResetToken();
+    await user.save({
+      validateBeforeSave: false,
+    });
+    // 3) Send it to user's email
+    try {
+      const resetURL = `${process.env.FRONTEND_URL}/wellness-reset-password/${resetToken}`;
+      console.log("resetURL :", resetURL);
+      await new Email(user, resetURL).sendPasswordReset(user.first_name);
+      res.status(200).json({
+        status: "success",
+        message: "Token sent to email!",
+      });
+    } catch (err) {
+      user.passwordResetToken = undefined;
+      user.passwordResetExpires = undefined;
+      await user.save({
+        validateBeforeSave: false,
+      });
+      return next(
+        new AppError("There Was An Error Sending The Email. Try Again Later!"),
+        500
+      );
+    }
+  });
+
+//reset Password
+exports.resetPassword = catchAsync(async (req, res, next) => {
+    console.log("test")
+    // 1) Get user based on the token
+    const hashedToken = crypto
+      .createHash("sha256")
+      .update(req.params.token)
+      .digest("hex");
+    const user = await WellnessMahotsavMentorUser.findOne({
+      passwordResetToken: hashedToken,
+      passwordResetExpires: {
+        $gt: Date.now(),
+      },
+    });
+    // 2) If token has not expired, and there is user, set the new password
+    if (!user) {
+      return next(new AppError("Token Is Invalid Or Has Expired", 400));
+    }
+  
+    // 3) Check if password and confirm password match
+    if (req.body.password !== req.body.confirm_password) {
+      return next(
+        new AppError("Password and Confirm Password does not match", 400)
+      );
+    }
+  
+    user.password = req.body.password;
+    user.confirm_password = req.body.confirm_password;
+    user.passwordResetToken = undefined;
+    user.passwordResetExpires = undefined;
+    await user.save();
+    createResetPasswordSendToken(user, 200, req, res);
+  });
+
+  //update password
+exports.updatePassword = catchAsync(async (req, res, next) => {
+    // 1) Get user from collection
+    const user = await WellnessMahotsavMentorUser.findById(req.user._id).select("+password");
+    if (!user) {
+      return next(new AppError("There Is No User With User Address.", 404));
+    }
+    // 2) Check if POSTed current password is correct
+    if (!(await user.correctPassword(req.body.old_password, user.password))) {
+      return next(new AppError("Your Current Password Is Wrong.", 422));
+    }
+    if (req.body.new_password !== req.body.confirm_password) {
+      return next(
+        new AppError("Your New Password And Confirm Password Does Not Match.", 422)
+      );
+    }
+    // 3) If so, update password
+    user.password = req.body.new_password;
+    user.confirm_password = req.body.confirm_password;
+    await user.save();
+    // 4) Log user in, send JWT
+    res.status(200).json({
+      status: "success",
+      message: "Password Change Successfully",
+    });
+  });
   
